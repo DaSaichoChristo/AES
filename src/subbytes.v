@@ -3,4 +3,5 @@ module subbytes(
   input [7:0] ibyte,
   output [7:0] obyte
 );
+endmodule
 

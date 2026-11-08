@@ -5,7 +5,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, ReadOnly, RisingEdge
 
 # raddr -> BRAM RDATA -> data_out
-LAT = 3
+LAT = 1
 
 
 def load_sbox():
@@ -21,7 +21,7 @@ async def sbox_lookup(dut):
     expected = load_sbox()
 
     dut.valid_in.value = 0
-    dut.rd_addr.value = 0
+    dut.raddr.value = 0
 
     # Flush the valid pipeline so valid_out is 0 even though it starts as X.
     for _ in range(LAT):
@@ -31,7 +31,7 @@ async def sbox_lookup(dut):
 
     for addr in range(256):
         await FallingEdge(dut.clk)
-        dut.rd_addr.value = addr
+        dut.raddr.value = addr
         dut.valid_in.value = 1
 
         # First edge captures the address and valid_in.
@@ -66,13 +66,13 @@ async def sbox_stream(dut):
     expected = load_sbox()
 
     dut.valid_in.value = 1
-    dut.rd_addr.value = 0
+    dut.raddr.value = 0
 
     pending = deque()
 
     for addr in range(256):
         await FallingEdge(dut.clk)
-        dut.rd_addr.value = addr
+        dut.raddr.value = addr
         pending.append(expected[addr])
 
         await RisingEdge(dut.clk)

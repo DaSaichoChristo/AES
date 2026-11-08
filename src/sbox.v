@@ -1,20 +1,26 @@
 module sbox (
     input wire clk,
     input wire [7:0] rd_addr,
+    input wire valid_in,
     output reg [7:0] data_out,
-    output reg valid_out
+    output wire valid_out
 );
+  // I asserted 3 latency because
+  // 1 clock cycle to assign rd_addr to raddr
+  // 1 clock cycle for rdata to be populated
+  // 1 clock cycle to assign data_out to rdata
+  localparam LAT = 3;
 
   wire [15:0] rdata;
   reg [7:0] raddr;
   reg [7:0] waddr;
   reg [15:0] mask;
   reg [15:0] wdata;
+  reg [LAT-1:0] valid_pipe;
   reg rclke;
   reg re;
   reg wclke;
   reg we;
-  reg req_pending;
 
   SB_RAM40_4K #(
       .INIT_FILE("../common/sbox.mem")
@@ -41,15 +47,18 @@ module sbox (
     wclke = 1;
     we = 0;
     rclke = 1;
-    req_pending = 0;
+    valid_pipe = {LAT{1'b0}};
   end
 
   always @(posedge clk) begin
+    valid_pipe <= {valid_pipe[LAT-2:0], valid_in};
+  end
+
+  assign valid_out = valid_pipe[LAT-1];
+
+  always @(posedge clk) begin
     raddr <= rd_addr;
-    // i added this step because the bram of ice40 is synchronized.
-    // therefore, it will always have one clock latency between raddr being inputed and the rdata being outputted.
-    req_pending <= 1'b1;
-    valid_out <= req_pending;
+
     data_out <= rdata[7:0];
   end
 endmodule

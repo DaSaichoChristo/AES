@@ -1,7 +1,7 @@
 SRC_DIR = $(PWD)/../src/
 SIM_DIR = $(PWD)/../sim/
 
-SIM_BUILD ?= ../sim
+SIM_BUILD ?= ../sim/$(TOPLEVEL)
 
 # The simulator we want to run our tests with.
 SIM ?= icarus

@@ -45,22 +45,37 @@ def sub_bytes(block):
     return bytes(aes_sbox(b) for b in block)
 
 
+def to_state(block):
+    """FIPS 197 section 3.4: in[r + 4c] is stored at state[r][c]."""
+    return [[block[4 * c + r] for c in range(4)] for r in range(4)]
+
+
+def set_state(dut, name, st):
+    for r in range(4):
+        for c in range(4):
+            dut[f"{name}[{4 * r + c}]"].value = st[r][c]
+
+
+def read_state(dut, name):
+    return [[int(dut[f"{name}[{4 * r + c}]"].value) for c in range(4)] for r in range(4)]
+
+
 async def drive_blocks(dut, blocks):
-    """Apply a new block every 4 sampling edges (i_text is held for a block)."""
+    """Apply a new state every 4 sampling edges (i_state is held for a block)."""
     for block in blocks[1:]:
         for _ in range(4):
             await RisingEdge(dut.clk)
         await FallingEdge(dut.clk)
-        dut.i_text.value = int.from_bytes(block, "little")
+        set_state(dut, "i_state", to_state(block))
 
 
 @cocotb.test()
 async def subbytes_stream(dut):
-    """Stream back-to-back 128-bit blocks and check every valid output."""
+    """Stream back-to-back states and check every valid output."""
     blocks = [random.randbytes(16) for _ in range(NUM_BLOCKS)]
-    expected = [sub_bytes(block) for block in blocks]
+    expected = [to_state(sub_bytes(block)) for block in blocks]
 
-    dut.i_text.value = int.from_bytes(blocks[0], "little")
+    set_state(dut, "i_state", to_state(blocks[0]))
     cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start(start_high=False))
     driver = cocotb.start_soon(drive_blocks(dut, blocks))
 
@@ -71,7 +86,7 @@ async def subbytes_stream(dut):
             if int(dut.valid.value):
                 break
 
-        got = int(dut.o_text.value).to_bytes(16, "little")
-        assert got == want, f"got {got.hex()}, expected {want.hex()}"
+        got = read_state(dut, "o_state")
+        assert got == want, f"got {got}, expected {want}"
 
     await driver
